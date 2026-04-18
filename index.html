@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SentiLens — AI Sentiment Classifier</title>
+  <meta name="description" content="Upload a CSV file and classify text sentiment as positive, neutral, or negative with SentiLens." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Animated background -->
+  <div class="bg-grid"></div>
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+  <div class="glow glow-3"></div>
+
+  <!-- Header -->
+  <header id="app-header">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="12" stroke="url(#lg)" stroke-width="2.5"/>
+          <path d="M9 15c1-3 3-5 5-5s4 2 5 5" stroke="url(#lg)" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="10" cy="11" r="1.5" fill="#a78bfa"/>
+          <circle cx="18" cy="11" r="1.5" fill="#a78bfa"/>
+          <defs><linearGradient id="lg" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+        </svg>
+      </div>
+      <span class="logo-text">Senti<span class="accent">Lens</span></span>
+    </div>
+    <nav>
+      <button id="btn-clear" class="nav-btn" title="Clear all and start over">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Clear
+      </button>
+    </nav>
+  </header>
+
+  <!-- Main content -->
+  <main id="app-main">
+
+    <!-- Quick Predict Section -->
+    <section id="quick-predict" class="card glass">
+      <div class="card-header">
+        <h1>
+          <span class="chip chip-quick">⚡ QUICK</span>
+          Predict Sentiment
+        </h1>
+        <p class="subtitle">Type or paste any sentence below and get an instant sentiment prediction.</p>
+      </div>
+
+      <div class="quick-input-wrap">
+        <textarea id="quick-input" rows="3" placeholder="Type or paste a sentence here… e.g. &quot;I really enjoyed the movie last night!&quot;" spellcheck="false"></textarea>
+        <button id="btn-predict" class="btn-primary">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2v14M2 9h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Predict
+        </button>
+      </div>
+
+      <!-- Live result -->
+      <div id="quick-result" class="quick-result hidden">
+        <div class="quick-result-inner">
+          <div id="quick-emoji" class="quick-emoji"></div>
+          <div class="quick-result-details">
+            <div class="quick-label-row">
+              <span id="quick-label" class="badge"></span>
+              <span id="quick-confidence" class="quick-confidence"></span>
+            </div>
+            <div class="quick-confidence-bar-wrap">
+              <div class="quick-confidence-bar">
+                <div id="quick-conf-fill" class="quick-conf-fill"></div>
+              </div>
+            </div>
+            <p id="quick-text-echo" class="quick-text-echo"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Divider -->
+    <div class="section-divider">
+      <span class="divider-line"></span>
+      <span class="divider-text">or upload a CSV file</span>
+      <span class="divider-line"></span>
+    </div>
+
+    <!-- Upload Section -->
+    <section id="upload-section" class="card glass">
+      <div class="card-header">
+        <h1>
+          <span class="chip chip-input">UPLOAD</span>
+          CSV File
+        </h1>
+        <p class="subtitle">Upload a CSV file with a <strong>text</strong> column. An optional <strong>id</strong> column can be included. The classifier will predict sentiment for each row.</p>
+      </div>
+
+      <!-- Drop zone -->
+      <div id="drop-zone" class="drop-zone">
+        <div class="drop-zone-content">
+          <div class="drop-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <rect x="6" y="10" width="36" height="28" rx="4" stroke="currentColor" stroke-width="2.2" stroke-dasharray="4 3"/>
+              <path d="M24 20v12M18 26l6-6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <p class="drop-text">Drag &amp; drop your CSV file here</p>
+          <p class="drop-subtext">or</p>
+          <label for="file-input" class="btn-browse">Browse Files</label>
+          <input type="file" id="file-input" accept=".csv" hidden />
+          <p class="drop-hint">Supported: .csv files</p>
+        </div>
+      </div>
+
+      <!-- File info (shown after upload) -->
+      <div id="file-info" class="file-info hidden">
+        <div class="file-icon">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 2h10l5 5v13a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5"/><path d="M14 2v5h5" stroke="currentColor" stroke-width="1.5"/></svg>
+        </div>
+        <div class="file-details">
+          <span id="file-name" class="file-name">file.csv</span>
+          <span id="file-meta" class="file-meta">0 rows · 0 KB</span>
+        </div>
+        <button id="btn-remove-file" class="btn-remove" title="Remove file">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <!-- Column mapping (shown after upload) -->
+      <div id="column-mapping" class="column-mapping hidden">
+        <div class="mapping-row">
+          <label for="col-text">Text Column</label>
+          <select id="col-text"></select>
+        </div>
+        <div class="mapping-row">
+          <label for="col-id">ID Column <span class="optional">(optional)</span></label>
+          <select id="col-id"><option value="">— Auto-generate —</option></select>
+        </div>
+      </div>
+
+      <!-- Preview table -->
+      <div id="preview-section" class="preview-section hidden">
+        <h3 class="preview-title">Preview <span id="preview-count" class="text-dim"></span></h3>
+        <div class="table-wrap">
+          <table id="preview-table">
+            <thead><tr id="preview-head"></tr></thead>
+            <tbody id="preview-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="input-actions">
+        <button id="btn-classify" class="btn-primary" disabled>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 9h12M12 5l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Classify Sentiment
+        </button>
+        <div id="error-box" class="error-box hidden"></div>
+      </div>
+    </section>
+
+    <!-- Stats bar -->
+    <section id="stats-section" class="hidden">
+      <div class="stats-grid">
+        <div class="stat-card glass" id="stat-total">
+          <span class="stat-value">0</span>
+          <span class="stat-label">Total</span>
+        </div>
+        <div class="stat-card glass positive-glow" id="stat-positive">
+          <span class="stat-value">0</span>
+          <span class="stat-label">Positive</span>
+        </div>
+        <div class="stat-card glass neutral-glow" id="stat-neutral">
+          <span class="stat-value">0</span>
+          <span class="stat-label">Neutral</span>
+        </div>
+        <div class="stat-card glass negative-glow" id="stat-negative">
+          <span class="stat-value">0</span>
+          <span class="stat-label">Negative</span>
+        </div>
+      </div>
+      <!-- Sentiment bar -->
+      <div class="sentiment-bar-wrap glass">
+        <div class="sentiment-bar">
+          <div class="bar-seg positive" id="bar-positive" style="width:0%"></div>
+          <div class="bar-seg neutral"  id="bar-neutral"  style="width:0%"></div>
+          <div class="bar-seg negative" id="bar-negative" style="width:0%"></div>
+        </div>
+        <div class="bar-legend">
+          <span class="legend-item"><span class="dot positive"></span>Positive</span>
+          <span class="legend-item"><span class="dot neutral"></span>Neutral</span>
+          <span class="legend-item"><span class="dot negative"></span>Negative</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results Table -->
+    <section id="results-section" class="card glass hidden">
+      <div class="card-header">
+        <h2>
+          <span class="chip chip-output">RESULTS</span>
+          Classification Results
+        </h2>
+        <button id="btn-download-csv" class="nav-btn" title="Download results as CSV">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v9M4 8l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Download CSV
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table id="results-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Text</th>
+              <th>Sentiment</th>
+              <th>Confidence</th>
+            </tr>
+          </thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>SentiLens &copy; 2026 &mdash; AI-powered sentiment analysis</p>
+  </footer>
+
+  <script src="classifier.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
