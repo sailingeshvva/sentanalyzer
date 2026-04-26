@@ -51,15 +51,25 @@
     }
   });
 
-  function runQuickPredict() {
+  async function runQuickPredict() {
     const text = $quickInput.value.trim();
     if (!text) {
       $quickResult.classList.add('hidden');
       return;
     }
 
-    const result = SentimentClassifier.classify(text);
-    renderQuickResult(text, result);
+    try {
+      const response = await fetch('/api/classify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      if (!response.ok) throw new Error('API error');
+      const result = await response.json();
+      renderQuickResult(text, result);
+    } catch (e) {
+      toast('Error: Could not connect to the backend server.');
+    }
   }
 
   function renderQuickResult(text, result) {
@@ -316,7 +326,7 @@
      CLASSIFY
      ══════════════════════════════════════════════════════════════════════ */
 
-  $btnClassify.addEventListener('click', () => {
+  $btnClassify.addEventListener('click', async () => {
     hideError();
     if (parsedRows.length === 0) { showError('No data loaded.'); return; }
 
@@ -335,18 +345,23 @@
 
     $btnClassify.classList.add('loading');
 
-    setTimeout(() => {
-      try {
-        const output = SentimentClassifier.processPayload({ rows });
-        classifiedData = output.results;
-        renderStats(output);
-        renderTable(output.results);
-      } catch (e) {
-        showError(e.message);
-      } finally {
-        $btnClassify.classList.remove('loading');
-      }
-    }, 300);
+    try {
+      const response = await fetch('/api/process_payload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows })
+      });
+      const output = await response.json();
+      if (output.error) throw new Error(output.error);
+      
+      classifiedData = output.results;
+      renderStats(output);
+      renderTable(output.results);
+    } catch (e) {
+      showError(e.message || 'Error connecting to the backend server.');
+    } finally {
+      $btnClassify.classList.remove('loading');
+    }
   });
 
   /* ══════════════════════════════════════════════════════════════════════
