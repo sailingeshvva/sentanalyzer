@@ -17,159 +17,53 @@ Usage:
     })
 """
 
-import re
 import json
-import math
 from datetime import datetime, timezone
 from typing import Any
 
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+
 
 class SentimentClassifier:
-    """Rule-based sentiment classifier with negation & intensifier support."""
+    """NLTK VADER based sentiment classifier."""
 
-    # ── Word lists ──────────────────────────────────────────────────────
-
-    POSITIVE_WORDS: set[str] = {
-        # emotion
-        "love", "happy", "great", "excellent", "amazing", "wonderful",
-        "fantastic", "awesome", "brilliant", "superb", "outstanding",
-        "magnificent", "delightful", "joyful", "cheerful", "glad",
-        "pleased", "thrilled", "excited", "grateful", "thankful", "blessed",
-        # approval
-        "good", "nice", "best", "better", "perfect", "impressive",
-        "beautiful", "elegant", "remarkable", "exceptional", "fabulous",
-        "terrific", "marvelous", "splendid",
-        # action / intent
-        "recommend", "enjoy", "appreciate", "adore", "admire", "praise",
-        "celebrate", "like", "liked", "loving", "enjoyed", "helpful",
-        "useful", "easy", "fast", "smooth", "friendly", "kind", "generous",
-        "reliable", "comfortable", "affordable", "satisfied", "pleasant",
-        "positive", "favorite", "favourite", "worth", "worthy",
-        "incredible", "phenomenal", "stunning", "glorious", "heartwarming",
-        "uplifting", "inspiring", "motivating", "supportive", "caring",
-        "thoughtful", "genuine", "innovative", "creative", "efficient",
-        "effective", "valuable", "quality", "premium", "luxurious",
-        "seamless", "intuitive", "user-friendly", "responsive",
-        "congratulations", "congrats", "bravo", "kudos", "cheers", "bless",
-        "hooray", "yay", "wow", "cool", "neat", "sweet", "fine", "stellar",
-        "top-notch", "world-class", "first-rate", "five-star", "unbeatable",
-        "unmatched",
-    }
-
-    NEGATIVE_WORDS: set[str] = {
-        # emotion
-        "hate", "terrible", "awful", "horrible", "disgusting", "angry",
-        "sad", "frustrated", "annoyed", "disappointed", "unhappy",
-        "miserable", "depressed", "furious", "outraged", "upset", "worried",
-        "anxious", "fearful", "scared", "dreadful", "pathetic",
-        # complaint
-        "bad", "worst", "worse", "poor", "ugly", "broken", "useless",
-        "waste", "boring", "slow", "confusing", "complicated", "difficult",
-        "expensive", "overpriced", "unreliable", "uncomfortable",
-        "unpleasant", "rude", "unfriendly", "disrespectful", "incompetent",
-        "unprofessional", "inadequate", "inferior", "mediocre",
-        # action / intent
-        "complain", "regret", "dislike", "avoid", "return", "refund",
-        "cancel", "fail", "failed", "failure", "error", "bug", "crash",
-        "problem", "issue", "scam", "fraud", "fake", "misleading",
-        "deceptive", "dishonest", "unethical", "disgusted", "appalled",
-        "horrified", "heartbroken", "devastating", "toxic", "nightmare",
-        "disaster", "catastrophe", "unacceptable", "intolerable",
-        "shameful", "disgraceful", "abysmal", "atrocious", "horrendous",
-        "lousy", "sucks", "crappy", "trash", "garbage", "junk", "rubbish",
-        "crap", "damn", "stupid", "idiotic", "ridiculous", "absurd",
-        "nonsense",
-    }
-
-    NEGATION_WORDS: set[str] = {
-        "not", "no", "never", "neither", "nor", "nobody", "nothing",
-        "nowhere", "hardly", "barely", "scarcely",
-        "don't", "doesn't", "didn't", "won't", "wouldn't", "couldn't",
-        "shouldn't", "isn't", "aren't", "wasn't", "weren't",
-        "haven't", "hasn't", "hadn't", "cannot", "can't",
-    }
-
-    INTENSIFIERS: set[str] = {
-        "very", "really", "extremely", "absolutely", "incredibly", "highly",
-        "totally", "completely", "utterly", "truly", "deeply", "so", "super",
-        "exceptionally", "remarkably", "extraordinarily",
-    }
-
-    # ── Tokenizer ───────────────────────────────────────────────────────
-
-    _SMART_QUOTES = re.compile(r"[\u2018\u2019]")       # ' '  →  '
-    _NON_ALPHA    = re.compile(r"[^a-z0-9' \-]")        # keep letters, digits, apostrophes, hyphens
-
-    @staticmethod
-    def _tokenize(text: str) -> list[str]:
-        """Lowercase, normalize quotes, strip non-alpha, split on whitespace."""
-        text = SentimentClassifier._SMART_QUOTES.sub("'", text.lower())
-        text = SentimentClassifier._NON_ALPHA.sub(" ", text)
-        return [t for t in text.split() if t]
-
-    # ── Classify a single text ──────────────────────────────────────────
+    def __init__(self):
+        # Ensure VADER lexicon is available
+        try:
+            nltk.data.find('sentiment/vader_lexicon.zip')
+        except LookupError:
+            nltk.download('vader_lexicon', quiet=True)
+            
+        self.sia = SentimentIntensityAnalyzer()
 
     def classify(self, text: str) -> dict[str, Any]:
         """
-        Classify a single text string.
+        Classify a single text string using NLTK VADER.
 
         Returns:
             dict with 'label' (positive | neutral | negative)
             and 'confidence' (float 0–1).
         """
-        tokens = self._tokenize(text)
-        if not tokens:
+        if not text or not isinstance(text, str):
             return {"label": "neutral", "confidence": 0.5}
 
-        score = 0.0
-        matched_words = 0
+        text = text.strip()
+        if not text:
+            return {"label": "neutral", "confidence": 0.5}
 
-        for i, token in enumerate(tokens):
-            prev  = tokens[i - 1] if i > 0 else ""
-            prev2 = tokens[i - 2] if i > 1 else ""
+        scores = self.sia.polarity_scores(text)
+        compound = scores['compound']
 
-            # Check negation (within 2-word window)
-            negated = prev in self.NEGATION_WORDS or prev2 in self.NEGATION_WORDS
-            # Check intensifier
-            intensified = 1.5 if prev in self.INTENSIFIERS else 1.0
-
-            if token in self.POSITIVE_WORDS:
-                delta = (-1 if negated else 1) * intensified
-                score += delta
-                matched_words += 1
-            elif token in self.NEGATIVE_WORDS:
-                delta = (1 if negated else -1) * intensified
-                score += delta
-                matched_words += 1
-
-        # Exclamation marks & CAPS amplify
-        exclamations = text.count("!")
-        non_space = re.sub(r"\s", "", text)
-        caps_count = sum(1 for c in text if c.isupper())
-        caps_ratio = caps_count / max(len(non_space), 1)
-
-        if caps_ratio > 0.5 and len(text) > 4:
-            score *= 1.3
-
-        if score != 0:
-            sign = 1 if score > 0 else -1
-            score += sign * min(exclamations, 3) * 0.2
-
-        # Normalize score → label + confidence
-        normalized_score = score / math.sqrt(len(tokens)) if tokens else 0.0
-
-        if normalized_score > 0.25:
+        if compound >= 0.05:
             label = "positive"
-            confidence = min(0.5 + abs(normalized_score) * 0.25, 0.99)
-        elif normalized_score < -0.25:
+            confidence = min(0.5 + ((compound - 0.05) / 0.95) * 0.49, 0.99)
+        elif compound <= -0.05:
             label = "negative"
-            confidence = min(0.5 + abs(normalized_score) * 0.25, 0.99)
+            confidence = min(0.5 + ((abs(compound) - 0.05) / 0.95) * 0.49, 0.99)
         else:
             label = "neutral"
-            if matched_words == 0:
-                confidence = 0.8  # no sentiment words → likely factual
-            else:
-                confidence = 0.5 + (0.25 - abs(normalized_score)) * 0.5
+            confidence = 0.5 + (0.05 - abs(compound)) / 0.05 * 0.49
 
         return {
             "label": label,
