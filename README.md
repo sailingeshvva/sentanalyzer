@@ -37,6 +37,7 @@ This project was developed to provide an intuitive and efficient way to perform 
    
 4. **View in Browser**
    Open your browser and navigate to [http://127.0.0.1:5000/](http://127.0.0.1:5000/)
+   live site :- [https://sailingeshvva.github.io/sentanalyzer/](https://sailingeshvva.github.io/sentanalyzer/)
 
 ## Repository Structure
 - `index.html` — The main graphical interface.
